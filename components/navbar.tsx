@@ -31,10 +31,14 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll)
   }, [])
 
-  // Close mobile menu when route changes
   useEffect(() => {
     setIsOpen(false)
   }, [pathname])
+
+  // ❌ Hide navbar on /admin routes
+  if (pathname.startsWith("/admin")) {
+    return null
+  }
 
   return (
     <motion.header
@@ -48,16 +52,9 @@ export default function Navbar() {
           <Link href="/" className="flex items-center gap-2">
             <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>
               <div className="flex items-center">
-                {!scrolled && (
-                  <span className="text-2xl font-bold font-montserrat tracking-tight text-gray-900">
-                    Siksha<span className="text-primary font-extrabold">Earn</span>
-                  </span>
-                )}
-                {scrolled && (
-                  <span className="text-2xl font-bold font-montserrat tracking-tight text-gray-900">
-                    Siksha<span className="text-primary font-extrabold">Earn</span>
-                  </span>
-                )}
+                <span className="text-2xl font-bold font-montserrat tracking-tight text-gray-900">
+                  Siksha<span className="text-primary font-extrabold">Earn</span>
+                </span>
               </div>
             </motion.div>
           </Link>
