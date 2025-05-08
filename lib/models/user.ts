@@ -10,6 +10,7 @@ export interface IUser extends Document {
   verificationToken?: string;
   otp?: string;
   otpExpires?: Date;
+  image?: string;
   
 }
 
@@ -23,7 +24,8 @@ const UserSchema = new Schema<IUser>({
   verificationToken: { type: String },
   otp: { type: String },
   otpExpires: { type: Date },
-  
+
+  image: { type: String },
 });
 
 export default mongoose.models.User || mongoose.model<IUser>('User', UserSchema);
