@@ -4,6 +4,7 @@ export interface IUser extends Document {
   firstName: string;
   lastName: string;
   email: string;
+  newEmail?: string; //tem way to store email
   password: string;
   role: 'user' | 'admin';
   emailVerified?: boolean;
@@ -11,6 +12,7 @@ export interface IUser extends Document {
   otp?: string;
   otpExpires?: Date;
   image?: string;
+  blocked?: boolean;
   
 }
 
@@ -24,8 +26,11 @@ const UserSchema = new Schema<IUser>({
   verificationToken: { type: String },
   otp: { type: String },
   otpExpires: { type: Date },
+  newEmail: { type: String }, // for temporary email before OTP verification
+
 
   image: { type: String },
+  blocked: { type: Boolean, default: false },
 });
 
 export default mongoose.models.User || mongoose.model<IUser>('User', UserSchema);

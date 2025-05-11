@@ -38,33 +38,57 @@ export async function POST(req: Request) {
 }
 
 
-export async function GET(req: Request) {
-    try {
-      await connectToDatabase();
+// export async function GET(req: Request) {
+//     try {
+//       await connectToDatabase();
       
-      const { searchParams } = new URL(req.url);
-      const email = searchParams.get('email');
-      const id = searchParams.get('id');
+//       const { searchParams } = new URL(req.url);
+//       const email = searchParams.get('email');
+//       const id = searchParams.get('id');
   
-      let user;
+//       let user;
   
-      if (email) {
-        user = await User.findOne({ email }).select('-password'); // exclude password
-      } else if (id) {
-        user = await User.findById(id).select('-password');
-      } else {
-        const users = await User.find().select('-password');
-        return new Response(JSON.stringify(users), { status: 200 });
-      }
+//       if (email) {
+//         user = await User.findOne({ email }).select('-password'); // exclude password
+//       } else if (id) {
+//         user = await User.findById(id).select('-password');
+//       } else {
+//         const users = await User.find().select('-password');
+//         return new Response(JSON.stringify(users), { status: 200 });
+//       }
   
-      if (!user) {
-        return new Response('User not found', { status: 404 });
-      }
+//       if (!user) {
+//         return new Response('User not found', { status: 404 });
+//       }
   
-      return new Response(JSON.stringify(user), { status: 200 });
+//       return new Response(JSON.stringify(user), { status: 200 });
   
-    } catch (err) {
-      console.error(err);
-      return new Response('Error fetching user(s)', { status: 500 });
-    }
-  }
+//     } catch (err) {
+//       console.error(err);
+//       return new Response('Error fetching user(s)', { status: 500 });
+//     }
+//   }
+
+//   export async function PATCH(req: Request) {
+//     try {
+//       await connectToDatabase();
+//       const { userId, block } = await req.json(); // `block` is a boolean
+  
+//       const updatedUser = await User.findByIdAndUpdate(
+//         userId,
+//         { blocked: block },
+//         { new: true }
+//       ).select('-password');
+  
+//       if (!updatedUser) {
+//         return new Response('User not found', { status: 404 });
+//       }
+  
+//       return new Response(JSON.stringify({ message: `User ${block ? 'blocked' : 'unblocked'}`, user: updatedUser }), {
+//         status: 200,
+//       });
+//     } catch (err) {
+//       console.error(err);
+//       return new Response('Error updating user block status', { status: 500 });
+//     }
+//   }

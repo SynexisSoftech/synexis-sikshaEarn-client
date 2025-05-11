@@ -75,6 +75,10 @@ export const authOptions: NextAuthOptions = {
             console.error('Email not verified for user:', user.email);
             throw new Error("Please verify your email before logging in");
           }
+          if (user.blocked) {
+            return new Response('This account is blocked', { status: 403 });
+          }
+          
 
           const userData = {
             id: user._id.toString(),

@@ -1,5 +1,7 @@
 // lib/auth.ts
 import type { NextAuthOptions } from 'next-auth'
+import { getServerSession } from 'next-auth';
+import { auth as nextAuth } from 'next-auth'; // ✅ import `auth()` properly
 
 export const authOptions: NextAuthOptions = {
   // ... your existing providers and callbacks
@@ -24,3 +26,4 @@ export const authOptions: NextAuthOptions = {
   },
   // ... rest of your configuration
 }
+export const auth = nextAuth; 

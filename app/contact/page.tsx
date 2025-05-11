@@ -1,8 +1,8 @@
 "use client"
 
 import type React from "react"
-
-import { useState } from "react"
+import axios from 'axios'
+import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
 import { MapPin, Phone, Mail, Clock, Send } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -13,6 +13,17 @@ import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { toast } from "@/components/ui/use-toast"
+import { Skeleton } from "@/components/ui/skeleton"
+
+interface ContactInformation {
+  address: string;
+  phone: string[];
+  email: string;
+  workingHours: {
+    sundayToFriday: string;
+    saturday: string;
+  };
+}
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({
@@ -22,6 +33,9 @@ export default function ContactPage() {
     message: "",
     inquiryType: "general",
   })
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [contactInfo, setContactInfo] = useState<ContactInformation | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -32,20 +46,68 @@ export default function ContactPage() {
     setFormData((prev) => ({ ...prev, inquiryType: value }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+ useEffect(() => {
+    const fetchContactInfo = async () => {
+      try {
+        const response = await axios.get('/api/admin/contact-information');
+        const data = response.data;
+        console.log('API Response:', data);
+        
+        if (data.success && data.data && data.data.length > 0) {
+          // Access the first item in the array
+          const firstContactInfo = data.data[0];
+          setContactInfo({
+            address: firstContactInfo.address,
+            phone: firstContactInfo.phone,
+            email: firstContactInfo.email,
+            workingHours: firstContactInfo.workingHours
+          });
+        } else {
+          setError('No contact information found.');
+        }
+      } catch (err) {
+        console.error('Error fetching contact info:', err);
+        setError('Failed to fetch contact information. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchContactInfo();
+  }, []);;
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log("Form submitted:", formData)
-    toast({
-      title: "Message Sent",
-      description: "We've received your message and will get back to you soon.",
-    })
-    setFormData({
-      name: "",
-      email: "",
-      subject: "",
-      message: "",
-      inquiryType: "general",
-    })
+
+    try {
+      const res = await axios.post('/api/contact', {
+        name: formData.name,
+        email: formData.email,
+        subject: formData.subject,
+        message: formData.message,
+        inquiryType: formData.inquiryType,
+      })
+
+      toast({
+        title: "Message Sent",
+        description: "We've received your message and will get back to you soon.",
+      })
+
+      setFormData({
+        name: "",
+        email: "",
+        subject: "",
+        message: "",
+        inquiryType: "general",
+      })
+    } catch (error: any) {
+      console.error("Error submitting form:", error)
+      toast({
+        title: "Error",
+        description: error?.response?.data?.error || "Something went wrong. Please try again later.",
+        variant: "destructive",
+      })
+    }
   }
 
   return (
@@ -76,56 +138,86 @@ export default function ContactPage() {
               className="lg:col-span-1"
             >
               <div className="grid gap-8">
-                <Card>
-                  <CardContent className="p-6">
-                    <h2 className="text-2xl font-bold mb-6">Contact Information</h2>
-                    <div className="space-y-6">
-                      <div className="flex items-start gap-4">
-                        <MapPin className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
-                        <div>
-                          <h3 className="font-semibold mb-1">Address</h3>
-                          <p className="text-muted-foreground">
-                          Dang,Nepal
-                            <br />
-                            Dang City, 44600
-                          </p>
-                        </div>
-                      </div>
+           <Card>
+        <CardContent className="p-6">
+          <h2 className="text-2xl font-bold mb-6">Contact Information</h2>
+          {loading ? (
+            <div className="space-y-6">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="flex items-start gap-4">
+                  <Skeleton className="h-6 w-6 rounded-full" />
+                  <div className="space-y-2 flex-1">
+                    <Skeleton className="h-4 w-[100px]" />
+                    <Skeleton className="h-4 w-[200px]" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : error ? (
+            <div className="text-red-500">{error}</div>
+          ) : contactInfo ? (
+            <div className="space-y-6">
+              <div className="flex items-start gap-4">
+                <MapPin className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
+                <div>
+                  <h3 className="font-semibold mb-1">Address</h3>
+                  <p className="text-muted-foreground whitespace-pre-line">
+                    {contactInfo.address || 'Not available'}
+                  </p>
+                </div>
+              </div>
 
-                      <div className="flex items-start gap-4">
-                        <Phone className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
-                        <div>
-                          <h3 className="font-semibold mb-1">Phone</h3>
-                          <p className="text-muted-foreground">+977 9766614640</p>
-                          <p className="text-muted-foreground">+977 9765750805</p>
-                        </div>
-                      </div>
+              <div className="flex items-start gap-4">
+                <Phone className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
+                <div>
+                  <h3 className="font-semibold mb-1">Phone</h3>
+                  {contactInfo.phone && contactInfo.phone.length > 0 ? (
+                    contactInfo.phone.map((phone, index) => (
+                      <p key={index} className="text-muted-foreground">
+                        {phone}
+                      </p>
+                    ))
+                  ) : (
+                    <p className="text-muted-foreground">Not available</p>
+                  )}
+                </div>
+              </div>
 
-                      <div className="flex items-start gap-4">
-                        <Mail className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
-                        <div>
-                          <h3 className="font-semibold mb-1">Email</h3>
-                          <p className="text-muted-foreground">promoplus1122@gmail.com</p>
-                        </div>
-                      </div>
+              <div className="flex items-start gap-4">
+                <Mail className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
+                <div>
+                  <h3 className="font-semibold mb-1">Email</h3>
+                  <p className="text-muted-foreground">
+                    {contactInfo.email || 'Not available'}
+                  </p>
+                </div>
+              </div>
 
-                      <div className="flex items-start gap-4">
-                        <Clock className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
-                        <div>
-                          <h3 className="font-semibold mb-1">Working Hours</h3>
-                          <p className="text-muted-foreground">
-                           Sunday - Friday: 7:00 AM - 8:00 PM
-                            <br />
-                            Saturday:closed
-                            <br />
-                          
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+              <div className="flex items-start gap-4">
+                <Clock className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
+                <div>
+                  <h3 className="font-semibold mb-1">Working Hours</h3>
+                  <p className="text-muted-foreground">
+                    {contactInfo.workingHours ? (
+                      <>
+                        Sunday - Friday: {contactInfo.workingHours.sundayToFriday || 'Not available'}
+                        <br />
+                        Saturday: {contactInfo.workingHours.saturday || 'Not available'}
+                      </>
+                    ) : (
+                      'Working hours not available'
+                    )}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div>No contact information available</div>
+          )}
+        </CardContent>
+      </Card>
 
+                {/* Rest of your follow us card */}
                 <Card>
                   <CardContent className="p-6">
                     <h2 className="text-2xl font-bold mb-6">Follow Us</h2>
@@ -207,6 +299,7 @@ export default function ContactPage() {
               </div>
             </motion.div>
 
+            {/* Rest of your form section */}
             <motion.div
               initial={{ opacity: 0, x: 50 }}
               whileInView={{ opacity: 1, x: 0 }}
@@ -306,8 +399,6 @@ export default function ContactPage() {
           </div>
         </div>
       </section>
-
-    
     </>
   )
 }
