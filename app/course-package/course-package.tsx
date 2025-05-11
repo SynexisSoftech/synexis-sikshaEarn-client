@@ -1,77 +1,114 @@
-import React from 'react';
-import PackageCard from './packageCard';
-import { CheckCircle2, HelpCircle } from 'lucide-react';
+"use client"
+
+import { useState, useEffect } from "react"
+import axios from "axios"
+import PackageCard from "./packageCard"
+import { CheckCircle2, HelpCircle, Loader2 } from "lucide-react"
+
+// Define the API package data structure
+interface ApiPackage {
+  _id: string
+  category: string
+  price: number | string
+  description: string
+  features: string[]
+  image: string | null
+}
+
+// Define the structure expected by PackageCard
+interface FormattedPackage {
+  name: string
+  price: string
+  description: string
+  features: { name: string; included: boolean }[]
+  image: string
+  gradientClass: string
+  buttonClass: string
+  popular?: boolean
+  numericPrice: number // Add this to help with sorting
+}
 
 const CoursePackages = () => {
-  const packages = [
-    {
-      name: "Silver",
-      price: "499",
-      description: "Perfect for beginners looking to start their digital marketing journey.",
-      features: [
-        { name: "Digital Marketing Introduction", included: true },
-        { name: "SEO", included: true },
-        { name: "Email Marketing", included: true },
-        { name: "Copywriting and content writing", included: true },
-        { name: "Social Media Marketing", included: true },
-        { name: "WordPress Website Development", included: true },
-      ],
-      image: "https://images.pexels.com/photos/2098427/pexels-photo-2098427.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&fit=crop",
+  const [packages, setPackages] = useState<FormattedPackage[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Map category to gradient and button classes
+  const categoryStyles: Record<string, { gradientClass: string; buttonClass: string }> = {
+    Silver: {
       gradientClass: "from-slate-200 to-slate-400",
       buttonClass: "bg-slate-600 hover:bg-slate-700",
     },
-    {
-      name: "Gold",
-      price: "1499",
-      description: "Ideal for those seeking to expand their digital marketing skills.",
-      features: [
-        { name: "Communication Skills", included: true },
-        { name: "Affiliate Marketing Master", included: true },
-        { name: "Introduction to Affiliate Marketing", included: true },
-        { name: "Digital Marketing Introduction", included: true },
-        { name: "SEO", included: true },
-        { name: "Email Marketing", included: true },
-      ],
-      popular: true,
-      image: "https://images.pexels.com/photos/4021256/pexels-photo-4021256.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&fit=crop",
+    Gold: {
       gradientClass: "from-amber-200 to-amber-400",
       buttonClass: "bg-amber-600 hover:bg-amber-700",
     },
-    {
-      name: "Diamond",
-      price: "2499",
-      description: "Comprehensive package for serious digital marketing professionals.",
-      features: [
-        { name: "Canva Master", included: true },
-        { name: "YouTube Master", included: true },
-        { name: "Facebook Ads", included: true },
-        { name: "Meta Ads", included: true },
-        { name: "Video Editing", included: true },
-        { name: "All Gold Package Features", included: true },
-      ],
-      image: "https://images.pexels.com/photos/2847648/pexels-photo-2847648.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&fit=crop",
+    Diamond: {
       gradientClass: "from-sky-200 to-sky-400",
       buttonClass: "bg-sky-600 hover:bg-sky-700",
     },
-    {
-      name: "Heroic",
-      price: "4999",
-      description: "Ultimate package for those aiming to master digital marketing.",
-      features: [
-        { name: "Digital Marketing Introduction", included: true },
-        { name: "Google Search Console", included: true },
-        { name: "Web Master Tools", included: true },
-        { name: "WordPress Website Development", included: true },
-        { name: "SEO Search Engine Optimization", included: true },
-        { name: "Affiliate Marketing Master", included: true },
-        { name: "Graphic Design", included: true },
-        { name: "All Diamond Package Features", included: true },
-      ],
-      image: "https://images.pexels.com/photos/3183183/pexels-photo-3183183.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&fit=crop",
+    Heroic: {
       gradientClass: "from-purple-200 to-purple-400",
       buttonClass: "bg-purple-600 hover:bg-purple-700",
     },
-  ];
+  }
+
+  // Fetch packages from API
+  useEffect(() => {
+    const fetchPackages = async () => {
+      setIsLoading(true)
+      setError(null)
+
+      try {
+        const response = await axios.get("/api/admin/package")
+
+        if (response.data.success) {
+          // Transform API data to match the expected format for PackageCard
+          const formattedPackages = response.data.data.map((pkg: ApiPackage) => {
+            const style = categoryStyles[pkg.category] || {
+              gradientClass: "from-gray-200 to-gray-400",
+              buttonClass: "bg-gray-600 hover:bg-gray-700",
+            }
+
+            // Convert price to numeric for sorting
+            const numericPrice = typeof pkg.price === "number" ? pkg.price : Number.parseFloat(pkg.price.toString())
+
+            return {
+              name: pkg.category,
+              price: `Rs ${typeof pkg.price === "number" ? pkg.price.toString() : pkg.price}`,
+              description: pkg.description,
+              features: pkg.features.map((feature) => ({
+                name: feature,
+                included: true,
+              })),
+              image:
+                pkg.image ||
+                "https://images.pexels.com/photos/3183183/pexels-photo-3183183.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&fit=crop",
+              gradientClass: style.gradientClass,
+              buttonClass: style.buttonClass,
+              // Mark Gold package as popular
+              popular: pkg.category === "Gold",
+              numericPrice: numericPrice, // Store numeric price for sorting
+            }
+          })
+
+          // Sort packages by price (lowest to highest)
+          const sortedPackages = formattedPackages.sort((a, b) => a.numericPrice - b.numericPrice)
+
+          setPackages(sortedPackages)
+        } else {
+          throw new Error("Failed to fetch packages")
+        }
+      } catch (err) {
+        console.error("Error fetching packages:", err)
+        setError("Failed to load packages. Please try again later.")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchPackages()
+  }, [])
 
   return (
     <>
@@ -84,7 +121,8 @@ const CoursePackages = () => {
               </span>
               <h1 className="text-4xl font-bold mb-6 text-gray-900">Choose Your Learning Path</h1>
               <p className="text-gray-600 mb-8">
-                Select from our range of carefully designed packages to accelerate your learning journey and achieve your career goals in digital marketing.
+                Select from our range of carefully designed packages to accelerate your learning journey and achieve
+                your career goals in digital marketing.
               </p>
             </div>
           </div>
@@ -93,11 +131,28 @@ const CoursePackages = () => {
 
       <section className="py-16 bg-white">
         <div className="container mx-auto px-4">
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {packages.map((pkg, index) => (
-              <PackageCard key={index} pkg={pkg} index={index} />
-            ))}
-          </div>
+          {isLoading ? (
+            <div className="flex justify-center items-center h-64">
+              <Loader2 className="h-12 w-12 text-blue-600 animate-spin" />
+              <span className="ml-3 text-lg text-gray-600">Loading packages...</span>
+            </div>
+          ) : error ? (
+            <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg text-center">
+              <p>{error}</p>
+              <button
+                className="mt-4 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                onClick={() => window.location.reload()}
+              >
+                Try Again
+              </button>
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+              {packages.map((pkg, index) => (
+                <PackageCard key={index} pkg={pkg} index={index} />
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -121,9 +176,10 @@ const CoursePackages = () => {
           <div className="max-w-3xl mx-auto text-center">
             <h2 className="text-3xl font-bold mb-6 text-gray-900">Why Choose Our Courses?</h2>
             <p className="text-gray-600 mb-12">
-              Our digital marketing courses are designed by industry experts to provide practical skills and knowledge that can be applied immediately.
+              Our digital marketing courses are designed by industry experts to provide practical skills and knowledge
+              that can be applied immediately.
             </p>
-            
+
             <div className="grid md:grid-cols-3 gap-8">
               <div className="p-6 rounded-xl bg-gray-50 animate-fadeIn">
                 <div className="mb-4 flex justify-center">
@@ -134,8 +190,8 @@ const CoursePackages = () => {
                 <h3 className="text-xl font-semibold mb-2">Expert Instructors</h3>
                 <p className="text-gray-600">Learn from professionals with years of industry experience</p>
               </div>
-              
-              <div className="p-6 rounded-xl bg-gray-50 animate-fadeIn" style={{ animationDelay: '0.2s' }}>
+
+              <div className="p-6 rounded-xl bg-gray-50 animate-fadeIn" style={{ animationDelay: "0.2s" }}>
                 <div className="mb-4 flex justify-center">
                   <span className="p-3 bg-blue-100 rounded-full">
                     <CheckCircle2 className="h-6 w-6 text-blue-600" />
@@ -144,8 +200,8 @@ const CoursePackages = () => {
                 <h3 className="text-xl font-semibold mb-2">Practical Knowledge</h3>
                 <p className="text-gray-600">Hands-on projects and real-world applications</p>
               </div>
-              
-              <div className="p-6 rounded-xl bg-gray-50 animate-fadeIn" style={{ animationDelay: '0.4s' }}>
+
+              <div className="p-6 rounded-xl bg-gray-50 animate-fadeIn" style={{ animationDelay: "0.4s" }}>
                 <div className="mb-4 flex justify-center">
                   <span className="p-3 bg-blue-100 rounded-full">
                     <HelpCircle className="h-6 w-6 text-blue-600" />
@@ -159,7 +215,7 @@ const CoursePackages = () => {
         </div>
       </section>
     </>
-  );
-};
+  )
+}
 
-export default CoursePackages;
+export default CoursePackages
