@@ -166,6 +166,12 @@ export default function AdminLayout({
             active={pathname === "/admin/users"}
             badge={245}
           />
+            <SidebarItem
+            icon={BookOpen}
+            label="package"
+            href="/admin/package"
+            active={pathname === "/admin/package"}
+          />
           <SidebarItem
             icon={BookOpen}
             label="Course Management"
