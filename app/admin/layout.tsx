@@ -178,6 +178,12 @@ export default function AdminLayout({
             href="/admin/courses"
             active={pathname === "/admin/courses"}
           />
+            <SidebarItem
+            icon={BookOpen}
+            label="upload-video"
+            href="/admin/upload-video"
+            active={pathname === "/admin/upload-video"}
+          />
           <SidebarItem
             icon={Award}
             label="Affiliate Management"
