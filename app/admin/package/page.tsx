@@ -1,9 +1,10 @@
 "use client"
 
 import type React from "react"
+
 import { useState, useEffect, useRef } from "react"
 import axios from "axios"
-import { AnimatePresence } from "framer-motion"
+import { AnimatePresence, motion } from "framer-motion"
 import {
   Plus,
   Edit,
@@ -34,12 +35,18 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 
+interface Course {
+  _id: string
+  title: string
+  videoPlaylist: string[]
+}
+
 interface PackageData {
   _id?: string
   category: string
   price: string | number
   description: string
-  features: string[]
+  courseRefs: Course[]
   image: string | null
 }
 
@@ -60,7 +67,10 @@ const Toast = ({ message, type, onClose }: ToastProps) => {
   }, [onClose])
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 20 }}
       className={`fixed bottom-4 right-4 z-50 flex items-center gap-2 rounded-md shadow-lg p-4 ${
         type === "success"
           ? "bg-green-50 text-green-700 border border-green-200"
@@ -76,7 +86,7 @@ const Toast = ({ message, type, onClose }: ToastProps) => {
       <button onClick={onClose} className="ml-2 rounded-full p-1 hover:bg-black hover:bg-opacity-10 transition-colors">
         <X className="h-4 w-4" />
       </button>
-    </div>
+    </motion.div>
   )
 }
 
@@ -94,11 +104,11 @@ export default function PackagePage() {
   const [isSaving, setIsSaving] = useState(false)
 
   // Form data
-  const [formData, setFormData] = useState<PackageData>({
+  const [formData, setFormData] = useState<Omit<PackageData, "courseRefs"> & { features: string[] }>({
     category: "",
     price: "",
     description: "",
-    features: [""],
+    features: [""], // Temporary field for form input (course titles)
     image: null,
   })
 
@@ -127,14 +137,13 @@ export default function PackagePage() {
 
     try {
       const response = await axios.get("/api/admin/package")
-      console.log("Fetched packages:", response.data)
 
       if (response.data.success) {
         setPackages(response.data.data)
       } else {
         throw new Error("Failed to fetch packages")
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error fetching packages:", err)
       setError("Failed to load packages. Please try again.")
     } finally {
@@ -148,16 +157,33 @@ export default function PackagePage() {
     setError(null)
 
     try {
+      // Validate form data
+      if (!formData.category) {
+        throw new Error("Package category is required")
+      }
+
+      if (!formData.price || isNaN(Number(formData.price)) || Number(formData.price) <= 0) {
+        throw new Error("Valid price is required")
+      }
+
+      if (!formData.description || formData.description.trim().length < 10) {
+        throw new Error("Description must be at least 10 characters")
+      }
+
+      // Filter out empty features
+      const validFeatures = formData.features.filter((f) => f.trim() !== "")
+      if (validFeatures.length === 0) {
+        throw new Error("At least one course is required")
+      }
+
       const formDataToSend = new FormData()
       formDataToSend.append("category", formData.category)
       formDataToSend.append("price", formData.price.toString())
       formDataToSend.append("description", formData.description)
 
-      // Append features correctly
-      formData.features.forEach((feature) => {
-        if (feature.trim() !== "") {
-          formDataToSend.append("features", feature) // Note: using same key for array
-        }
+      // Append only valid features
+      validFeatures.forEach((feature) => {
+        formDataToSend.append("features", feature)
       })
 
       if (selectedFile) {
@@ -180,7 +206,6 @@ export default function PackagePage() {
       }
     } catch (err: any) {
       console.error("Error creating package:", err)
-      console.error("Error response:", err.response?.data)
       showErrorToast(err.response?.data?.error || err.message || "Failed to create package")
     } finally {
       setIsSaving(false)
@@ -195,23 +220,35 @@ export default function PackagePage() {
     setError(null)
 
     try {
-      // If there's a new image, we need to use FormData
+      // Validate form data
+      if (!formData.price || isNaN(Number(formData.price)) || Number(formData.price) <= 0) {
+        throw new Error("Valid price is required")
+      }
+
+      if (!formData.description || formData.description.trim().length < 10) {
+        throw new Error("Description must be at least 10 characters")
+      }
+
+      const validFeatures = formData.features.filter((f) => f.trim() !== "")
+      if (validFeatures.length === 0) {
+        throw new Error("At least one course is required")
+      }
+
+      // If there's a new image or we need to update multiple fields, use FormData
       if (selectedFile) {
         const formDataToSend = new FormData()
         formDataToSend.append("category", currentPackage.category)
         formDataToSend.append("price", formData.price.toString())
         formDataToSend.append("description", formData.description)
 
-        // Append features correctly
-        formData.features.forEach((feature) => {
-          if (feature.trim() !== "") {
-            formDataToSend.append("features", feature)
-          }
+        // Append features (course titles)
+        validFeatures.forEach((feature) => {
+          formDataToSend.append("features", feature)
         })
 
         formDataToSend.append("image", selectedFile)
 
-        const response = await axios.post("/api/admin/package", formDataToSend, {
+        const response = await axios.patch("/api/admin/package", formDataToSend, {
           headers: {
             "Content-Type": "multipart/form-data",
           },
@@ -229,10 +266,9 @@ export default function PackagePage() {
         // If no new image, use regular JSON
         const dataToSend = {
           category: currentPackage.category,
-          price: formData.price,
+          price: Number(formData.price),
           description: formData.description,
-          features: formData.features.filter((f) => f.trim() !== ""),
-          image: formData.image,
+          features: validFeatures,
         }
 
         const response = await axios.put("/api/admin/package", dataToSend)
@@ -248,7 +284,7 @@ export default function PackagePage() {
       }
     } catch (err: any) {
       console.error("Error updating package:", err)
-      showErrorToast(err.message || "Failed to update package")
+      showErrorToast(err.response?.data?.error || err.message || "Failed to update package")
     } finally {
       setIsSaving(false)
     }
@@ -276,14 +312,14 @@ export default function PackagePage() {
       }
     } catch (err: any) {
       console.error("Error deleting package:", err)
-      showErrorToast(err.message || "Failed to delete package")
+      showErrorToast(err.response?.data?.error || err.message || "Failed to delete package")
     } finally {
       setIsSaving(false)
     }
   }
 
   // Handle form input changes
-  const handleInputChange = (field: keyof PackageData, value: string | number | string[]) => {
+  const handleInputChange = (field: keyof typeof formData, value: string | number | string[]) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
@@ -332,7 +368,7 @@ export default function PackagePage() {
       category: pkg.category,
       price: pkg.price,
       description: pkg.description,
-      features: pkg.features || [""],
+      features: pkg.courseRefs.map((course) => course.title) || [""], // Convert courseRefs to titles
       image: pkg.image,
     })
     setPreviewUrl(pkg.image ? pkg.image : null)
@@ -370,7 +406,8 @@ export default function PackagePage() {
 
   // Format price
   const formatPrice = (price: string | number) => {
-    return typeof price === "number" ? `$${price.toFixed(2)}` : `$${Number.parseFloat(price).toFixed(2)}`
+    const numPrice = typeof price === "string" ? Number.parseFloat(price) : price
+    return !isNaN(numPrice) ? `$${numPrice.toFixed(2)}` : "$0.00"
   }
 
   // Fetch data on component mount
@@ -430,7 +467,7 @@ export default function PackagePage() {
                       {pkg.image && (
                         <div className="h-40 overflow-hidden bg-slate-100">
                           <img
-                            src={pkg.image || "/placeholder.svg"}
+                            src={pkg.image || "/placeholder.svg?height=160&width=320"}
                             alt={pkg.category}
                             className="w-full h-full object-cover"
                             onError={(e) => {
@@ -445,14 +482,14 @@ export default function PackagePage() {
                           <div className="font-bold text-lg text-green-600">{formatPrice(pkg.price)}</div>
                         </div>
                         <p className="text-sm text-slate-600 mb-4">{pkg.description}</p>
-                        {pkg.features && pkg.features.length > 0 && (
+                        {pkg.courseRefs && pkg.courseRefs.length > 0 && (
                           <div>
-                            <h4 className="text-sm font-medium mb-2">Features:</h4>
+                            <h4 className="text-sm font-medium mb-2">Courses Included:</h4>
                             <ul className="text-sm space-y-1">
-                              {pkg.features.map((feature, index) => (
-                                <li key={index} className="flex items-start">
+                              {pkg.courseRefs.map((course) => (
+                                <li key={course._id} className="flex items-start">
                                   <span className="text-green-500 mr-2">✓</span>
-                                  <span>{feature}</span>
+                                  <span>{course.title}</span>
                                 </li>
                               ))}
                             </ul>
@@ -488,7 +525,7 @@ export default function PackagePage() {
         <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add New Package</DialogTitle>
-            <DialogDescription>Create a new package with details and features.</DialogDescription>
+            <DialogDescription>Create a new package with details and courses.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -517,6 +554,8 @@ export default function PackagePage() {
                   onChange={(e) => handleInputChange("price", e.target.value)}
                   placeholder="99.99"
                   className="pl-9"
+                  min="0"
+                  step="0.01"
                   required
                 />
               </div>
@@ -532,14 +571,15 @@ export default function PackagePage() {
                 rows={3}
                 required
               />
+              <p className="text-xs text-slate-500">Minimum 10 characters</p>
             </div>
 
             <div className="space-y-2">
               <div className="flex justify-between items-center">
-                <Label>Features</Label>
+                <Label>Courses</Label>
                 <Button type="button" variant="outline" size="sm" onClick={addFeature} className="h-8">
                   <Plus className="h-3.5 w-3.5 mr-1" />
-                  Add Feature
+                  Add Course
                 </Button>
               </div>
               <div className="space-y-3">
@@ -548,7 +588,7 @@ export default function PackagePage() {
                     <Input
                       value={feature}
                       onChange={(e) => handleFeatureChange(index, e.target.value)}
-                      placeholder={`Feature Rs{index + 1}`}
+                      placeholder={`Course title ${index + 1}`}
                       required
                     />
                     {formData.features.length > 1 && (
@@ -662,6 +702,8 @@ export default function PackagePage() {
                   onChange={(e) => handleInputChange("price", e.target.value)}
                   placeholder="99.99"
                   className="pl-9"
+                  min="0"
+                  step="0.01"
                   required
                 />
               </div>
@@ -677,14 +719,15 @@ export default function PackagePage() {
                 rows={3}
                 required
               />
+              <p className="text-xs text-slate-500">Minimum 10 characters</p>
             </div>
 
             <div className="space-y-2">
               <div className="flex justify-between items-center">
-                <Label>Features</Label>
+                <Label>Courses</Label>
                 <Button type="button" variant="outline" size="sm" onClick={addFeature} className="h-8">
                   <Plus className="h-3.5 w-3.5 mr-1" />
-                  Add Feature
+                  Add Course
                 </Button>
               </div>
               <div className="space-y-3">
@@ -693,7 +736,7 @@ export default function PackagePage() {
                     <Input
                       value={feature}
                       onChange={(e) => handleFeatureChange(index, e.target.value)}
-                      placeholder={`Feature ${index + 1}`}
+                      placeholder={`Course title ${index + 1}`}
                       required
                     />
                     {formData.features.length > 1 && (

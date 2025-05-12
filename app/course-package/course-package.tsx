@@ -5,13 +5,19 @@ import axios from "axios"
 import PackageCard from "./packageCard"
 import { CheckCircle2, HelpCircle, Loader2 } from "lucide-react"
 
-// Define the API package data structure
+// Define the API package data structure to match what's actually returned
+interface Course {
+  _id: string
+  title: string
+  videoPlaylist: string[]
+}
+
 interface ApiPackage {
   _id: string
   category: string
   price: number | string
   description: string
-  features: string[]
+  courseRefs: Course[] // Changed from features to courseRefs
   image: string | null
 }
 
@@ -73,14 +79,17 @@ const CoursePackages = () => {
             // Convert price to numeric for sorting
             const numericPrice = typeof pkg.price === "number" ? pkg.price : Number.parseFloat(pkg.price.toString())
 
+            // Extract course titles from courseRefs to use as features
+            const features = pkg.courseRefs.map((course) => ({
+              name: course.title,
+              included: true,
+            }))
+
             return {
               name: pkg.category,
               price: `Rs ${typeof pkg.price === "number" ? pkg.price.toString() : pkg.price}`,
               description: pkg.description,
-              features: pkg.features.map((feature) => ({
-                name: feature,
-                included: true,
-              })),
+              features: features, // Use the extracted course titles as features
               image:
                 pkg.image ||
                 "https://images.pexels.com/photos/3183183/pexels-photo-3183183.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&fit=crop",
