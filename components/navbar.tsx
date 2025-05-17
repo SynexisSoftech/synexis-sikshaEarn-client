@@ -134,7 +134,7 @@ export default function Navbar() {
                 >
                   <div className="relative w-8 h-8 rounded-full overflow-hidden border-2 border-primary">
                     <Image
-                      src={session.user.image || "/default-profile.png"}
+                      src={session.user.image|| "/default-profile.png"}
                       alt={session.user.name || "User"}
                       fill
                       className="object-cover"
